@@ -8,21 +8,9 @@ contributions:
     - id: napari-mini-unwarp.write_multiple
       python_name: napari_mini_unwarp._writer:write_multiple
       title: Save multi-layer data with Mini unwarper
-    - id: napari-mini-unwarp.write_single_image
-      python_name: napari_mini_unwarp._writer:write_single_image
-      title: Save image data with Mini unwarper
-    - id: napari-mini-unwarp.make_sample_data
-      python_name: napari_mini_unwarp._sample_data:make_sample_data
-      title: Load sample data from Mini unwarper 
     - id: napari-mini-unwarp.make_qwidget
-      python_name: napari_mini_unwarp._widget:ExampleQWidget
-      title: Make example QWidget
-    - id: napari-mini-unwarp.make_magic_widget
-      python_name: napari_mini_unwarp._widget:example_magic_widget
-      title: Make example magic widget
-    - id: napari-mini-unwarp.make_func_widget
-      python_name: napari_mini_unwarp._widget:example_function_widget
-      title: Make example function widget 
+      python_name: napari_mini_unwarp._widget:StartWidget
+      title: Creating widget
   readers:
     - command: napari-mini-unwarp.get_reader
       accepts_directories: false
@@ -31,18 +19,6 @@ contributions:
     - command: napari-mini-unwarp.write_multiple
       layer_types: ['image*','labels*']
       filename_extensions: []
-    - command: napari-mini-unwarp.write_single_image
-      layer_types: ['image']
-      filename_extensions: ['.npy'] 
-  sample_data:
-    - command: napari-mini-unwarp.make_sample_data
-      display_name: Mini unwarper
-      key: unique_id.1 
   widgets:
     - command: napari-mini-unwarp.make_qwidget
-      display_name: Example QWidget
-    - command: napari-mini-unwarp.make_magic_widget
-      display_name: Example Magic Widget
-    - command: napari-mini-unwarp.make_func_widget
-      autogenerate: true
-      display_name: Example Function Widget 
+      display_name: Hotte's totally amazing QWidget
