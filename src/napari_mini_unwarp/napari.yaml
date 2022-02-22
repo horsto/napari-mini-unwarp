@@ -9,7 +9,7 @@ contributions:
       python_name: napari_mini_unwarp._writer:write_multiple
       title: Save multi-layer data with Mini unwarper
     - id: napari-mini-unwarp.make_qwidget
-      python_name: napari_mini_unwarp._widget:StartWidget
+      python_name: napari_mini_unwarp._widget:MiniUnwarpWidget
       title: Creating widget
   readers:
     - command: napari-mini-unwarp.get_reader
@@ -21,4 +21,4 @@ contributions:
       filename_extensions: []
   widgets:
     - command: napari-mini-unwarp.make_qwidget
-      display_name: Hotte's totally amazing QWidget
+      display_name: Mini unwarp
