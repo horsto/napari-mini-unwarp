@@ -219,7 +219,7 @@ class MiniUnwarpWidget(QWidget):
         # LAYOUT
         # Generate export button
         layout_export = QHBoxLayout()  
-        self.export_button = QPushButton("Export to disk")
+        self.export_button = QPushButton("Export (WIP!)")
         self.export_button.clicked.connect(self._export)
         self.export_button.setEnabled(self.state_export_btn)
         layout_export.addWidget(self.export_button)

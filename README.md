@@ -24,13 +24,11 @@ https://napari.org/plugins/stable/index.html
 ## Installation
 
 You can install `napari-mini-unwarp` via [pip]:
-
+    pip install "napari[all]"
     pip install napari-mini-unwarp
 
 
-
-
-## Contributing
+## Contributing (WIP)
 
 Contributions are very welcome. Tests can be run with [tox], please ensure
 the coverage at least stays the same before you submit a pull request.
@@ -60,27 +58,3 @@ If you encounter any problems, please [file an issue] along with a detailed desc
 [pip]: https://pypi.org/project/pip/
 [PyPI]: https://pypi.org/
 
-
-### Copy and paste from generation script 
-Don't forget to add this url to setup.cfg!
-```
-     [metadata]
-     url = https://github.com/your-repo-username/your-repo-name.git
-```
-4. Consider adding additional links for documentation and user support to setup.cfg 
-   using the project_urls key e.g.
-```    
-    [metadata]
-    project_urls =
-        Bug Tracker = https://github.com/your-repo-username/your-repo-name/issues
-        Documentation = https://github.com/your-repo-username/your-repo-name#README.md
-        Source Code = https://github.com/your-repo-username/your-repo-name
-        User Support = https://github.com/your-repo-username/your-repo-name/issues
-```
-5. Read the README for more info: https://github.com/napari/cookiecutter-napari-plugin
-
-6. We've provided a template description for your plugin page at `.napari/DESCRIPTION.md`. 
-   You'll likely want to edit this before you publish your plugin.
-
-7. Consider customizing the rest of your plugin metadata for display on the napari hub: 
-   https://github.com/chanzuckerberg/napari-hub/blob/main/docs/customizing-plugin-listing.md
