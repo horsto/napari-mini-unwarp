@@ -26,7 +26,8 @@ https://napari.org/plugins/stable/index.html
 You can install `napari-mini-unwarp` via [pip]:
 ```python
     pip install "napari[all]"
-    pip install napari-mini-unwarp
+    pip install -e . # after cloning this repository and changing directory to the cloned code
+    #in the future: pip install napari-mini-unwarp
 ```
 
 ## Contributing (WIP)
