@@ -45,7 +45,7 @@ class MiniUnwarpWidget(QWidget):
         self.setMaximumWidth(width)
 
         self.state_unwarp_btn = False # the "Unwarp!" button is deactivated from start
-
+        self.state_export_btn = False # "Export" button
 
         ### Main Layout
         layout = QVBoxLayout()    
@@ -55,25 +55,49 @@ class MiniUnwarpWidget(QWidget):
         
 
         ## Define grid cols and rows 
+        # First info box
         layout_info = QHBoxLayout()  
-        info_text = QLabel("Enter the number of <br> <b>rows</b> and <b>columns</b> <br> below.")
+        info_text = QLabel("Enter the number of <br> <b>rows</b> and <b>columns</b> <br> below.<br>You can press space bar<br>and move the image<br> or zoom in by scrolling.")
         layout_info.addWidget(info_text, 100)
-
         layout_info_widget = QWidget()
         layout_info_widget.setLayout(layout_info)
-
+        layout_info_widget.setContentsMargins( 0, 
+                                               0, 
+                                               0, 
+                                               0
+                                               )
         layout_grid_def_widget = self._generate_grid_def_layout()
         layout_start_margin_widget = self._generate_start_margin_layout()
         layout_generate_grid_widget = self._generate_grid_generate_layout()
         layout_unwarp_widget = self._generate_unwarp_layout()
+        layout_gridspacing = self._generate_gridspacing_layout()
+        layout_export = self._generate_export_layout()
 
 
         #### Take care of main layout
+
         layout.addWidget(layout_info_widget) 
         layout.addWidget(layout_grid_def_widget) 
         layout.addWidget(layout_start_margin_widget)   
         layout.addWidget(layout_generate_grid_widget)
         layout.addWidget(layout_unwarp_widget)
+
+        # Second info box
+        layout_info2 = QHBoxLayout()  
+        info_text2 = QLabel("What is the physical <br>grid spacing in microns?")
+        layout_info2.addWidget(info_text2, 100)
+        layout_info_widget2 = QWidget()
+        layout_info_widget2.setLayout(layout_info2)
+        layout_info_widget2.setContentsMargins(0, 
+                                               60, 
+                                               0, 
+                                               0
+                                               )
+        layout.addWidget(layout_info_widget2) 
+
+        layout.addWidget(layout_gridspacing)
+
+        layout.addWidget(layout_export)
 
         layout.setAlignment(qtcore.Qt.AlignTop)
         self.setLayout(layout)
@@ -109,7 +133,7 @@ class MiniUnwarpWidget(QWidget):
         layout_grid_def.addWidget(label_no_cols, 20)
         layout_grid_def.addWidget(self.no_cols_edit, 30)
         layout_grid_def.setContentsMargins(self.left_margins, 
-                                           self.top_margins, 
+                                           0, 
                                            self.right_margins, 
                                            self.bottom_margins
                                            )
@@ -169,6 +193,44 @@ class MiniUnwarpWidget(QWidget):
         layout_unwarp_widget =  QWidget()
         layout_unwarp_widget.setLayout(layout_unwarp)
         return layout_unwarp_widget
+
+    def _generate_gridspacing_layout(self):
+        # LAYOUT
+        # Generate gridspacing input field
+
+        layout_gridspacing = QHBoxLayout()  
+       
+        gridspacing_label   = QLabel("Grid (µm)")
+        self.gridspacing_edit = QLineEdit()
+        self.gridspacing_edit.setText('50.0')
+        layout_gridspacing.addWidget(gridspacing_label,30)
+        layout_gridspacing.addWidget(self.gridspacing_edit,70)
+
+        layout_gridspacing.setContentsMargins(self.left_margins, 
+                                               0, 
+                                               self.right_margins, 
+                                               self.bottom_margins
+                                               )
+        layout_gridspacing_widget =  QWidget()
+        layout_gridspacing_widget.setLayout(layout_gridspacing)
+        return layout_gridspacing_widget
+
+    def _generate_export_layout(self):
+        # LAYOUT
+        # Generate export button
+        layout_export = QHBoxLayout()  
+        self.export_button = QPushButton("Export to disk")
+        self.export_button.clicked.connect(self._export)
+        self.export_button.setEnabled(self.state_export_btn)
+        layout_export.addWidget(self.export_button)
+        layout_export.setContentsMargins(self.left_margins, 
+                                         60, 
+                                         self.right_margins, 
+                                         self.bottom_margins
+                                         )
+        layout_export_widget =  QWidget()
+        layout_export_widget.setLayout(layout_export)
+        return layout_export_widget
 
 
 
@@ -256,6 +318,10 @@ class MiniUnwarpWidget(QWidget):
         self.state_unwarp_btn = True
         self.unwarp_button.setEnabled(self.state_unwarp_btn)
 
+        # ... and make sure the export button is (still) disabled (until warp is pressed)
+        self.state_export_btn = False
+        self.export_button.setEnabled(self.state_export_btn)
+
         return 
 
 
@@ -329,4 +395,14 @@ class MiniUnwarpWidget(QWidget):
         # Lastly, add the unwarped grid image to the viewer
         self.viewer.add_image(data=unwarped, rgb=False, name=UNWARPED_LAYER)
 
+        self.state_export_btn = True
+        self.export_button.setEnabled(self.state_export_btn)
+
         return
+
+    def _export(self):
+        '''
+        Export the unwarping results to disk.
+        
+        '''
+        print('EXPORT')
