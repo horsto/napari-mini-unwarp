@@ -11,6 +11,7 @@ from qtpy.QtWidgets import (QWidget,
                             QLineEdit,
                             QLabel,
                             QMessageBox,
+                            QComboBox
                            )
 
 import qtpy.QtCore as qtcore 
@@ -57,7 +58,7 @@ class MiniUnwarpWidget(QWidget):
         ## Define grid cols and rows 
         # First info box
         layout_info = QHBoxLayout()  
-        info_text = QLabel("Enter the number of <br> <b>rows</b> and <b>columns</b> <br> below.<br>You can press space bar<br>and move the image<br> or zoom in by scrolling.")
+        info_text = QLabel("<b>(A)</b> Enter the number of <br> <i>rows</i> and <i>columns</i> <br> below.<br>You can press space bar<br>and move the image<br> or zoom in by scrolling.")
         layout_info.addWidget(info_text, 100)
         layout_info_widget = QWidget()
         layout_info_widget.setLayout(layout_info)
@@ -71,7 +72,16 @@ class MiniUnwarpWidget(QWidget):
         layout_generate_grid_widget = self._generate_grid_generate_layout()
         layout_unwarp_widget = self._generate_unwarp_layout()
         layout_gridspacing = self._generate_gridspacing_layout()
+        
+        # System, scope, objective, zoom and tlens plane information 
+        layout_systemname    = self._generate_systemname_layout()
+        layout_scopename     = self._generate_scopename_layout()
+        layout_objectivename = self._generate_objectivename_layout()
+        layout_zoomname      = self._generate_zoom_layout()
+        layout_tlens_plane   = self._generate_tlens_layout()
+
         layout_export = self._generate_export_layout()
+
 
 
         #### Take care of main layout
@@ -84,25 +94,42 @@ class MiniUnwarpWidget(QWidget):
 
         # Second info box
         layout_info2 = QHBoxLayout()  
-        info_text2 = QLabel("What is the physical <br>grid spacing in microns?")
+        info_text2 = QLabel("<b>(B)</b> What is the physical <br>grid spacing in microns?")
         layout_info2.addWidget(info_text2, 100)
         layout_info_widget2 = QWidget()
         layout_info_widget2.setLayout(layout_info2)
         layout_info_widget2.setContentsMargins(0, 
-                                               60, 
+                                               30, 
                                                0, 
                                                0
                                                )
         layout.addWidget(layout_info_widget2) 
-
         layout.addWidget(layout_gridspacing)
+
+        # Third info box
+        layout_info3 = QHBoxLayout()  
+        info_text3 = QLabel("<b>(C)</b> Specify system and<br>acquisition parameters")
+        layout_info3.addWidget(info_text3, 100)
+        layout_info_widget3 = QWidget()
+        layout_info_widget3.setLayout(layout_info3)
+        layout_info_widget3.setContentsMargins(0, 
+                                               30, 
+                                               0, 
+                                               0
+                                               )
+        layout.addWidget(layout_info_widget3) 
+
+        layout.addWidget(layout_systemname)
+        layout.addWidget(layout_scopename)
+        layout.addWidget(layout_objectivename)
+        layout.addWidget(layout_zoomname)
+        layout.addWidget(layout_tlens_plane)
 
         layout.addWidget(layout_export)
 
         layout.setAlignment(qtcore.Qt.AlignTop)
         self.setLayout(layout)
 
-    
     
     ##### LAYOUT ELEMENTS #############################################################################
     ###################################################################################################
@@ -215,6 +242,116 @@ class MiniUnwarpWidget(QWidget):
         layout_gridspacing_widget.setLayout(layout_gridspacing)
         return layout_gridspacing_widget
 
+    def _generate_systemname_layout(self):
+        # LAYOUT
+        # Generate system name input field
+
+        layout_systemname = QHBoxLayout()  
+       
+        systemname_label   = QLabel("System")
+        self.systemname_edit = QLineEdit()
+        self.systemname_edit.setText('Emerald')
+        layout_systemname.addWidget(systemname_label,30)
+        layout_systemname.addWidget(self.systemname_edit,70)
+
+        layout_systemname.setContentsMargins(self.left_margins, 
+                                             0, 
+                                             self.right_margins, 
+                                             self.bottom_margins
+                                             )
+        layout_systemname_widget =  QWidget()
+        layout_systemname_widget.setLayout(layout_systemname)
+        return layout_systemname_widget
+
+    def _generate_scopename_layout(self):
+        # LAYOUT
+        # Generate scope name input field
+
+        layout_scopename = QHBoxLayout()  
+       
+        scopename_label   = QLabel("Scope")
+        self.scopename_edit = QLineEdit()
+        self.scopename_edit.setText('Enormous')
+        layout_scopename.addWidget(scopename_label,30)
+        layout_scopename.addWidget(self.scopename_edit,70)
+
+        layout_scopename.setContentsMargins(self.left_margins, 
+                                            self.top_margins, 
+                                            self.right_margins, 
+                                            self.bottom_margins
+                                            )
+        layout_scopename_widget =  QWidget()
+        layout_scopename_widget.setLayout(layout_scopename)
+        return layout_scopename_widget
+
+    def _generate_objectivename_layout(self):
+        # LAYOUT
+        # Generate objetive name QComboBox dropdown
+
+        layout_scopename = QHBoxLayout()  
+        scopename_label  = QLabel("Objective")
+        self.scopename   = QComboBox()
+        self.scopename.addItems(["D0213", "D0277", "D0254"])
+        #self.scopename.currentIndexChanged.connect(self.____)
+
+        layout_scopename.addWidget(scopename_label, 30)
+        layout_scopename.addWidget(self.scopename,  70)
+
+        layout_scopename.setContentsMargins(self.left_margins, 
+                                            self.top_margins, 
+                                            self.right_margins, 
+                                            self.bottom_margins
+                                            )
+        layout_scopename_widget =  QWidget()
+        layout_scopename_widget.setLayout(layout_scopename)
+        return layout_scopename_widget
+
+
+    def _generate_zoom_layout(self):
+        # LAYOUT
+        # Generate zoom level input field
+
+        layout_zoomlevel = QHBoxLayout()  
+        zoomlevel_label  = QLabel("Zoom")
+        self.zoomlevel = QLineEdit()
+        self.zoomlevel.setText('1.0')
+
+
+        layout_zoomlevel.addWidget(zoomlevel_label, 30)
+        layout_zoomlevel.addWidget(self.zoomlevel,  70)
+
+        layout_zoomlevel.setContentsMargins(self.left_margins, 
+                                            self.top_margins, 
+                                            self.right_margins, 
+                                            self.bottom_margins
+                                            )
+        layout_zoomlevel_widget =  QWidget()
+        layout_zoomlevel_widget.setLayout(layout_zoomlevel)
+        return layout_zoomlevel_widget
+
+    def _generate_tlens_layout(self):
+        # LAYOUT
+        # Generate tlens zplane level input field
+
+        layout_tlens = QHBoxLayout()  
+        tlens_label  = QLabel("TLens (µm)")
+        self.tlens = QLineEdit()
+        self.tlens.setText('0.0')
+
+        layout_tlens.addWidget(tlens_label, 30)
+        layout_tlens.addWidget(self.tlens,  70)
+
+        layout_tlens.setContentsMargins(self.left_margins, 
+                                        self.top_margins, 
+                                        self.right_margins, 
+                                        self.bottom_margins
+                                        )
+        layout_tlens_widget =  QWidget()
+        layout_tlens_widget.setLayout(layout_tlens)
+        return layout_tlens_widget
+
+
+
     def _generate_export_layout(self):
         # LAYOUT
         # Generate export button
@@ -224,7 +361,7 @@ class MiniUnwarpWidget(QWidget):
         self.export_button.setEnabled(self.state_export_btn)
         layout_export.addWidget(self.export_button)
         layout_export.setContentsMargins(self.left_margins, 
-                                         60, 
+                                         30, 
                                          self.right_margins, 
                                          self.bottom_margins
                                          )

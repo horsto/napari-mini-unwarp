@@ -21,6 +21,7 @@ and review the napari docs for plugin developers:
 https://napari.org/plugins/stable/index.html
 -->
 
+
 ## Installation
 
 You can install `napari-mini-unwarp` via [pip]:
@@ -60,3 +61,4 @@ If you encounter any problems, please [file an issue] along with a detailed desc
 [pip]: https://pypi.org/project/pip/
 [PyPI]: https://pypi.org/
 
+![Animation](animation.gif)

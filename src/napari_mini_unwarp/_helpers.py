@@ -49,7 +49,7 @@ def unwarp(usr_dots, grid_dots, grid_image_original):
                 to_points     = grid_dots,
                 images        = [grid_image_original],
                 output_region = [0, 0, grid_image_original.shape[1], grid_image_original.shape[0]],
-                interpolation_order = 5,
+                interpolation_order = 1,
                 approximate_grid = 1,
                 )[0]
     # Check whether margins are free
