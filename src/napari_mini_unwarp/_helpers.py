@@ -22,8 +22,8 @@ def generate_perfect_grid(data,
     grid_dots : np.aray: rows x cols
     
     '''   
-    HEIGHT = data.shape[1]
-    WIDTH  = data.shape[0]
+    HEIGHT = data.shape[-1]
+    WIDTH  = data.shape[-2]
 
     HEIGHT_start = HEIGHT * start_margin
     HEIGHT_end   = HEIGHT - (HEIGHT * start_margin)
@@ -39,6 +39,11 @@ def generate_perfect_grid(data,
             grid_dots.append([y,x])
     grid_dots = np.vstack(grid_dots)    
     
+    # If data is 3D (i.e. multi plane data), extend the dimensions
+    
+    
+
+
     return grid_dots
 
 

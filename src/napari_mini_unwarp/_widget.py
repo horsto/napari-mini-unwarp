@@ -38,7 +38,7 @@ class MiniUnwarpWidget(QWidget):
 
         
         self.viewer = napari_viewer
-        width = 200
+        width = 250
         self.left_margins=15
         self.top_margins=10
         self.right_margins=15
@@ -47,6 +47,7 @@ class MiniUnwarpWidget(QWidget):
 
         self.state_unwarp_btn = False # the "Unwarp!" button is deactivated from start
         self.state_export_btn = False # "Export" button
+        self.state_propagate_btn = False # Propagate points (through stack) button
 
         ### Main Layout
         layout = QVBoxLayout()    
@@ -70,6 +71,7 @@ class MiniUnwarpWidget(QWidget):
         layout_grid_def_widget = self._generate_grid_def_layout()
         layout_start_margin_widget = self._generate_start_margin_layout()
         layout_generate_grid_widget = self._generate_grid_generate_layout()
+        layout_propagate_points_widget = self._generate_propagate_layout()
         layout_unwarp_widget = self._generate_unwarp_layout()
         layout_gridspacing = self._generate_gridspacing_layout()
         
@@ -90,6 +92,7 @@ class MiniUnwarpWidget(QWidget):
         layout.addWidget(layout_grid_def_widget) 
         layout.addWidget(layout_start_margin_widget)   
         layout.addWidget(layout_generate_grid_widget)
+        layout.addWidget(layout_propagate_points_widget)
         layout.addWidget(layout_unwarp_widget)
 
         # Second info box
@@ -203,6 +206,24 @@ class MiniUnwarpWidget(QWidget):
         layout_generate_grid_widget =  QWidget()
         layout_generate_grid_widget.setLayout(layout_generate_grid)
         return layout_generate_grid_widget
+
+    def _generate_propagate_layout(self):
+        # LAYOUT
+        # Propagate user set points through stack button
+        layout_propagate_points = QHBoxLayout()  
+        self.propagate_points_button = QPushButton("Propagate points")
+        self.propagate_points_button.clicked.connect(self._propagate_points)
+        self.propagate_points_button.setEnabled(self.state_propagate_btn)
+        layout_propagate_points.addWidget(self.propagate_points_button)
+        layout_propagate_points.setContentsMargins(self.left_margins, 
+                                                   self.top_margins, 
+                                                   self.right_margins, 
+                                                   self.bottom_margins
+                                                   )
+        layout_propagate_points_widget =  QWidget()
+        layout_propagate_points_widget.setLayout(layout_propagate_points)
+        return layout_propagate_points_widget
+
 
     def _generate_unwarp_layout(self):
         # LAYOUT
@@ -401,6 +422,8 @@ class MiniUnwarpWidget(QWidget):
                                           cols=self.no_cols,
                                           start_margin=self.start_margin,
                                           )
+
+
         self.standard_grid_dots = grid_dots.copy() # Create copy for later ... 
 
         # Built in check for layer existence
@@ -428,30 +451,37 @@ class MiniUnwarpWidget(QWidget):
 
         ###### ADD DOTS ##########################################################################
 
-        self.viewer.add_points(name=STANDARD_GRID_LAYER,
-                  data=grid_dots,
-                  edge_width=1, 
-                  edge_color='#000000',  
-                  face_color = 'white',
-                  opacity = .8,    
-                  size=grid_image.shape[0]/60, # Adapt size of symbol to current data size
-                  blending='translucent'
-              )
+        self.viewer.add_points(data=grid_dots,
+                               name=STANDARD_GRID_LAYER,
+                               edge_width=1, 
+                               edge_color='#000000',  
+                               face_color = 'white',
+                               opacity = .8,    
+                               size=grid_image.shape[-1]/50, # Adapt size of symbol to current data size
+                               blending='translucent',
+                               out_of_slice_display=False,
+                              )
         self.viewer.add_points(data=grid_dots.copy(),
-                        name=USR_GRID_LAYER, 
-                        edge_width=.4, 
-                        edge_color='orangered',  
-                        face_color = 'white',
-                        opacity = .5,    
-                        size=grid_image.shape[0]/40, # Adapt size of symbol to current data size
-                        blending='translucent'
-                    )
+                               name=USR_GRID_LAYER, 
+                               edge_width=.4, 
+                               edge_color='orangered',  
+                               face_color = 'white',
+                               opacity = .5,    
+                               size=grid_image.shape[-1]/40, # Adapt size of symbol to current data size
+                               blending='translucent',
+                               out_of_slice_display=False,
+                              )
         self.viewer.layers[USR_GRID_LAYER].mode ='select'
         self.viewer.layers[USR_GRID_LAYER].symbol ='x'
 
         self.viewer.layers[STANDARD_GRID_LAYER].visible = False
 
-        # Lastly, activate the unwarp button 
+        # Lastly, activate the propagate points and unwarp buttons
+        # Check if the data is multiplane ... 
+        if grid_image.ndim == 3: 
+            self.state_propagate_btn = True
+            self.propagate_points_button.setEnabled(self.state_propagate_btn)
+
         self.state_unwarp_btn = True
         self.unwarp_button.setEnabled(self.state_unwarp_btn)
 
@@ -460,6 +490,37 @@ class MiniUnwarpWidget(QWidget):
         self.export_button.setEnabled(self.state_export_btn)
 
         return 
+
+    def _propagate_points(self):
+        '''
+        For data spanning multiple layers, 
+        take the currently activated layer and try to propagate points 
+        in z 
+
+
+        
+        
+        '''
+
+        grid_image = self.viewer.layers[GRID_IMAGE_LAYER].data
+        if grid_image.ndim != 3:
+            print('Data is not 3D - cannot propagate points')
+            # ... and deactivate (why was it activated in the first place?)
+            self.state_propagate_btn = False
+            self.propagate_points_button.setEnabled(self.state_propagate_btn)
+            return 
+
+
+
+
+        current_plane = self.viewer.dims.current_step[0]
+        
+
+
+
+
+        
+        return
 
 
     def _unwarp(self):
