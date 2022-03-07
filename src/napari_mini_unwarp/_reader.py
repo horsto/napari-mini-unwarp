@@ -1,8 +1,13 @@
 """
 
 """
+from collections import OrderedDict
+from pathlib import Path
 import numpy as np
+
 from tifffile import imread
+import scanreader
+from scanreader.exceptions import ScanImageVersionError
 
 def napari_get_reader(path):
     """
@@ -22,78 +27,135 @@ def napari_get_reader(path):
         same path or list of paths, and returns a list of layer data tuples.
 
     """
+    path = Path(path)
 
-    if isinstance(path, list):
-        # reader plugins may be handed single path, or a list of paths.
-        # We are not dealing with multiple files, so abort early on
-        #path = path[0]
-        return None
-
-    # If we know we cannot read the file, we immediately return None.
-    if not path.endswith(".tif"):
-        return None
+    if path.is_dir():
+        available_tifs = list(path.glob(r'*.tif'))
+        if available_tifs: 
+            print(f'Reading {path.as_posix()}')
+            return tif_reader
+        else: 
+            print('No .tifs found in folder')
+            return None
+    elif path.is_file():
+        if path.suffix == '.tif':
+            print(f'Reading {path.as_posix()}')
+            return tif_reader
+        else:
+            print('Not a .tif')
+            return None
     else: 
-        print('Tif detected!')
-
-    # Otherwise - switch to loading that file with the appropriate reader
-    return tif_reader
-
+        return None
 
 def tif_reader(path):
+
     '''
-    Load single tif or tif stack 
+    Load single image tif / tif stack or 
+    a folder of tif images
+
+
+    Currently accepted combinations: 
+    - Single tif files (ScanImage or else)
+    - Folder of ScanImage tif files 
     
-    
+    If a folder of ScanImage tif files is read in, 
+    tif files will be read one-by-one and z focus information will 
+    be read out automatically and added to the layer metadata. 
+    For each file in the folder, a average projection will be calculated 
+    and a single layer that contains all average projections will be created.
+
     '''
-    original_tif = imread(path)
 
-    print(f'Dimensions of tif: {original_tif.shape}')
-    if len(original_tif.shape) == 3:
-        print(f'Timeseries assumed')
-        assert original_tif.shape[1] == original_tif.shape[2], 'Dimensions not supported'
-        original_tif = np.mean(original_tif, axis=0)
-        print('Created average projection')
-    
-    data = original_tif
+    path = Path(path)
 
-    # Optional kwargs for the corresponding viewer.add_* method
-    add_kwargs = {'rgb': False, 'name' : 'Grid image'}
-    layer_type = "image"  # optional, default is "image"
-    
-    return [(data, add_kwargs, layer_type)]
+    if path.is_dir():
+        tif_dict = {}
+        
+        # Check whether the zoom, width, height property is the same for all files, while reading them in.
+        # A similar check is performed for imaging depth (which should yield unique numbers)
+        # ... add more if you can think of more ... 
+        zooms = []
+        widths = []
+        heights = []
+        
+        for tif_file in path.glob(r'*.tif'):
+            # Extract z position solely from file name 
+            # z_height = re.search(r'(?P<position>\d+)um', str(tif_file))
+            # tif_dict[float(z_height.group('position'))] = tif_file
 
+            # Read file with scanreader (https://github.com/kavli-ntnu/scanreader)
+            # for basic checks
+            try: 
+                scan = scanreader.read_scan(tif_file.as_posix())
+            except ScanImageVersionError:
+                raise NotImplementedError('Not a ScanImage .tif file')
+            if scan.num_scanning_depths > 1: 
+                raise NotImplementedError(f'>1 imaging plane detected in {tif_file.as_posix()}')
 
-# def reader_function(path):
-#     """Take a path or list of paths and return a list of LayerData tuples.
+            z_height = scan.scanning_depths_relative[0]
+            print(f'{tif_file.name:<30} ScanImage .tif with {scan.num_frames} frames, zoom {scan.zoom}, depth {z_height}')
+            tif_dict[z_height] = tif_file.as_posix()
+            zooms.append(scan.zoom)
+            widths.append(scan.image_width)
+            heights.append(scan.image_height)
+            
+        # Create sorted dictionary from collected files
+        sorted_zpos = OrderedDict(sorted(tif_dict.items()))
+        print(f'Found {len(sorted_zpos)} matching tif files across z positions [microns]:\n{list(sorted_zpos.keys())}')
+        # Perform checks 
+        assert len(np.unique(list(sorted_zpos.keys()))) == len(sorted_zpos.keys()), 'There seem to be duplicates in z position data'
+        assert len(np.unique(zooms)) == 1, f'There seems to be more than one zoom level across tifs {np.unique(zooms)}'
+        assert len(np.unique(widths)) == 1, f'Tif stacks seem to vary in width {np.unique(widths)}'
+        assert len(np.unique(heights)) == 1, f'Tif stacks seem to vary in height {np.unique(heights)}'
+                
+        # else:
+        #     # Only if the naming convention is taken as basis for file info extraction
+        #     print('Folder does not contain .tif files in right format')
+        #     print('Please provided a folder of .tif files in the format:')
+        #     print('"___900um___.tif", where "_" is any character and "900" is a number indicating the z position')
 
-#     Readers are expected to return data as a list of tuples, where each tuple
-#     is (data, [add_kwargs, [layer_type]]), "add_kwargs" and "layer_type" are
-#     both optional.
+        # Create layer
+        stacked_avg = []
 
-#     Parameters
-#     ----------
-#     path : str or list of str
-#         Path to file, or list of paths.
+        for no, tif_path in enumerate(sorted_zpos.values()):
+            print(f'Reading ({no+1:<2}/{len(sorted_zpos):<2}) | {tif_path}')
+            scan = scanreader.read_scan(tif_path)
+            average_proj = np.mean(scan, axis=-1).squeeze()
+            stacked_avg.append(average_proj)
 
-#     Returns
-#     -------
-#     layer_data : list of tuples
-#         A list of LayerData tuples where each tuple in the list contains
-#         (data, metadata, layer_type), where data is a numpy array, metadata is
-#         a dict of keyword arguments for the corresponding viewer.add_* method
-#         in napari, and layer_type is a lower-case string naming the type of layer.
-#         Both "meta", and "layer_type" are optional. napari will default to
-#         layer_type=="image" if not provided
-#     """
-#     # handle both a string and a list of strings
-#     paths = [path] if isinstance(path, str) else path
-#     # load all files into array
-#     arrays = [np.load(_path) for _path in paths]
-#     # stack arrays into single array
-#     data = np.squeeze(np.stack(arrays))
+        data = np.stack(stacked_avg)
+            
+        add_kwargs = {'rgb': False, 'name' : 'Grid image(s)', 'metadata': sorted_zpos}
+        layer_type = "image"  # optional, default is "image"
+        
+        return [(data, add_kwargs, layer_type)]
 
-#     # optional kwargs for the corresponding viewer.add_* method
-#     add_kwargs = {}
+    elif path.is_file():
+        tif_file = path
 
-#     layer_type = "image"  # optional, default is "image"
-#     return [(data, add_kwargs, layer_type)]
+        try: 
+            scan = scanreader.read_scan(tif_file.as_posix())
+            if scan.shape[-1] > 1:
+                print(f'Timeseries assumed')
+                average_proj = np.mean(scan, axis=-1).squeeze()
+                print('Created average projection')
+                data = average_proj 
+            else: 
+                data = np.array(scan).squeeze()
+
+        except ScanImageVersionError:
+            data = imread(tif_file.as_posix())
+            if len(data.shape) == 3:
+                assert data.shape[1] == data.shape[2], f'Image data shape not supported ({data.shape})'
+                data = np.mean(data, axis=0)
+
+        assert len(data.shape) == 2, 'Data has more than 2 dimensions'
+
+        add_kwargs = {'rgb': False, 'name' : 'Grid image(s)', 'metadata': {}}
+        layer_type = "image"  # optional, default is "image"
+        
+        return [(data, add_kwargs, layer_type)]
+
+    else:
+        print(f'Type not recognized ("{path}")')
+

@@ -13,7 +13,7 @@ contributions:
       title: Creating widget
   readers:
     - command: napari-mini-unwarp.get_reader
-      accepts_directories: false
+      accepts_directories: true
       filename_patterns: ['*.tif'] 
   writers:
     - command: napari-mini-unwarp.write_multiple
