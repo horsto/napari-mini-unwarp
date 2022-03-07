@@ -21,7 +21,7 @@ from ._helpers import generate_perfect_grid, unwarp
 
 
 
-GRID_IMAGE_LAYER = 'Grid image'
+GRID_IMAGE_LAYER = 'Grid image(s)'
 UNWARPED_LAYER = 'Unwarped grid image'
 STANDARD_GRID_LAYER = 'Standard grid'
 USR_GRID_LAYER = 'Grid'
@@ -392,7 +392,7 @@ class MiniUnwarpWidget(QWidget):
         self.no_cols = int(self.no_cols_edit.text())
         self.start_margin = float(self.start_margin_edit.text()) # Needs to get available to other functions too
 
-        grid_image = self.viewer.layers['Grid image'].data
+        grid_image = self.viewer.layers[GRID_IMAGE_LAYER].data
 
         print(f'Adding dots ... \n rows: {self.no_rows} x cols: {self.no_cols} | margin: {self.start_margin}')
 

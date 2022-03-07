@@ -4,6 +4,8 @@
 from collections import OrderedDict
 from pathlib import Path
 import numpy as np
+from datetime import datetime
+import pickle
 
 from tifffile import imread
 import scanreader
@@ -39,13 +41,39 @@ def napari_get_reader(path):
             return None
     elif path.is_file():
         if path.suffix == '.tif':
-            print(f'Reading {path.as_posix()}')
+            print(f'Reading tif {path.as_posix()}')
             return tif_reader
+        elif path.suffix == '.pkl':
+            print(f'Reading pickle {path.as_posix()}')
+            return pkl_raw_reader
         else:
-            print('Not a .tif')
+            print('Not a .tif or .pkl file')
             return None
     else: 
         return None
+
+def pkl_raw_reader(path):
+    '''
+    Reads previously collected layer data back into napari 
+
+    path : path to .pkl (pickle) file
+        
+    '''
+
+    pkl_file = open(path, "rb")
+    layer_data = pickle.load(pkl_file)
+
+    data_type = layer_data["type"]
+    timestamp = layer_data["export_timestamp"]
+
+    # Actual layer information
+    data = layer_data['data']
+    add_kwargs = layer_data['add_kwargs']
+    layer_type = layer_data['layer_type']
+
+    print(f'Loaded .pkl export of type {data_type} from {timestamp}')
+    return [(data, add_kwargs, layer_type)]
+
 
 def tif_reader(path):
 
@@ -125,10 +153,22 @@ def tif_reader(path):
 
         data = np.stack(stacked_avg)
             
-        add_kwargs = {'rgb': False, 'name' : 'Grid image(s)', 'metadata': sorted_zpos}
+        add_kwargs = {'rgb': False, 'name' : 'Grid image(s)', 'metadata': sorted_zpos, 'scale': [10, 1, 1]}
         layer_type = "image"  # optional, default is "image"
         
+        # Before returning, also save the file as dictionary to disk 
+        save_dict = {}
+        save_dict['type'] = 'Raw grid image'
+        save_dict['data'] = data
+        save_dict['add_kwargs'] = add_kwargs
+        save_dict['layer_type'] = layer_type
+        save_dict['export_timestamp'] = datetime.now()
+        with open(path/'napari_grid_image_raw.pkl', "wb") as export_file:
+            print('Saving grid image layer dictionary into raw data folder')
+            pickle.dump(save_dict, export_file)
+
         return [(data, add_kwargs, layer_type)]
+
 
     elif path.is_file():
         tif_file = path

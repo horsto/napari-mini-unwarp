@@ -14,7 +14,7 @@ contributions:
   readers:
     - command: napari-mini-unwarp.get_reader
       accepts_directories: true
-      filename_patterns: ['*.tif'] 
+      filename_patterns: ['*.tif','*.pkl'] 
   writers:
     - command: napari-mini-unwarp.write_multiple
       layer_types: ['image*','labels*']
