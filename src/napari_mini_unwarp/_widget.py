@@ -4,6 +4,7 @@
 
 """
 import numpy as np 
+from napari.utils import progress
 from qtpy.QtWidgets import (QWidget, 
                             QHBoxLayout, 
                             QPushButton, 
@@ -11,19 +12,25 @@ from qtpy.QtWidgets import (QWidget,
                             QLineEdit,
                             QLabel,
                             QMessageBox,
-                            QComboBox
+                            QComboBox,
                            )
 
 import qtpy.QtCore as qtcore 
 from qtpy.QtGui import QIntValidator, QDoubleValidator
 
-from ._helpers import generate_perfect_grid, unwarp, get_median_spacing, propagate_cross_corr
+from ._helpers import (generate_perfect_grid, 
+                       unwarp, 
+                       get_median_spacing, 
+                       propagate_cross_corr, 
+                       get_optimal_unwarp,
+                      )
 
-
+# Some naming ... 
 GRID_IMAGE_LAYER = 'Grid image(s)'
 UNWARPED_LAYER = 'Unwarped grid image'
 STANDARD_GRID_LAYER = 'Standard grid'
 USR_GRID_LAYER = 'Grid'
+CORRECTED_POINTS_LAYER = 'Corrected points'
 
 
 class MiniUnwarpWidget(QWidget):
@@ -334,8 +341,13 @@ class MiniUnwarpWidget(QWidget):
         layout_zoomlevel = QHBoxLayout()  
         zoomlevel_label  = QLabel("Zoom")
         self.zoomlevel = QLineEdit()
-        self.zoomlevel.setText('1.0')
 
+        # Check if meta data is present 
+        if 'zoom' in self.viewer.layers[GRID_IMAGE_LAYER].metadata:
+            self.zoomlevel.setText(self.viewer.layers[GRID_IMAGE_LAYER].metadata['zoom'])
+            self.zoomlevel.setEnabled(False)
+        else: 
+            self.zoomlevel.setText('1.0')
 
         layout_zoomlevel.addWidget(zoomlevel_label, 30)
         layout_zoomlevel.addWidget(self.zoomlevel,  70)
@@ -356,7 +368,13 @@ class MiniUnwarpWidget(QWidget):
         layout_tlens = QHBoxLayout()  
         tlens_label  = QLabel("TLens (µm)")
         self.tlens = QLineEdit()
-        self.tlens.setText('0.0')
+
+        # Check if meta data is present 
+        if 'z_height' in self.viewer.layers[GRID_IMAGE_LAYER].metadata:
+            self.tlens.setText(self.viewer.layers[GRID_IMAGE_LAYER].metadata['z_height'])
+            self.tlens.setEnabled(False)
+        else: 
+            self.tlens.setText('0.0')
 
         layout_tlens.addWidget(tlens_label, 30)
         layout_tlens.addWidget(self.tlens,  70)
@@ -494,7 +512,7 @@ class MiniUnwarpWidget(QWidget):
         '''
         For data spanning multiple layers, 
         take the currently activated layer and try to propagate points 
-        in z 
+        in z (across planes)
 
 
         
@@ -509,12 +527,23 @@ class MiniUnwarpWidget(QWidget):
             self.propagate_points_button.setEnabled(self.state_propagate_btn)
             return 
 
+        # Built in check for layer existence
+        for l in self.viewer.layers:
+            if (l.name == CORRECTED_POINTS_LAYER) :
+                ret = QMessageBox.question(self, 'MessageBox', 
+                                           "Previous propagated points exist. Delete?", 
+                                           QMessageBox.Yes | QMessageBox.Cancel)
 
+                if ret == QMessageBox.Yes:
+                    print('Deleting layer')
+                    self.viewer.layers.pop(CORRECTED_POINTS_LAYER)
+                else:
+                    print('Skipping')
+                    return 
 
 
         plane_idx_current   = self.viewer.dims.current_step[0]
         print(f'Current plane: {plane_idx_current}')
-        #grid_image_current  = grid_image[plane_idx_current, :, :]
         grid_points_current = self.viewer.layers['Grid'].data
         num_planes = grid_image.shape[0]
                 
@@ -542,7 +571,7 @@ class MiniUnwarpWidget(QWidget):
 
 
         # Add all points across all planes to viewer
-        self.viewer.add_points(name='Corrected points',
+        self.viewer.add_points(name=CORRECTED_POINTS_LAYER,
                                data=all_points,
                                edge_width=.7, 
                                edge_color='#000000',  
@@ -552,7 +581,8 @@ class MiniUnwarpWidget(QWidget):
                                blending='translucent',
                                out_of_slice_display=False,
                                )
-
+        # Switch off the user point layer (because it's confusing at this point)
+        self.viewer.layers[USR_GRID_LAYER].visible = False
 
         return
 
@@ -585,6 +615,7 @@ class MiniUnwarpWidget(QWidget):
         # Grid image
         grid_image_layer = self.viewer.layers[GRID_IMAGE_LAYER]
         grid_image_original = grid_image_layer.data
+        num_planes = grid_image_original.shape[0]
 
         # Standard grid pattern
         standard_grid = generate_perfect_grid(data = grid_image_original,
@@ -593,37 +624,73 @@ class MiniUnwarpWidget(QWidget):
                                               start_margin = self.start_margin,
                                          )
         
+        ##### DECIDE WHETHER YOU DEAL WITH SINGLE PLANE OR MULTIPLANE DATA 
+        if CORRECTED_POINTS_LAYER in self.viewer.layers: 
+            if grid_image_original.ndim == 3:
+                multiplane = True
+                usr_layer_grid =  self.viewer.layers[CORRECTED_POINTS_LAYER]
+            else:
+                raise NotImplementedError(f'{CORRECTED_POINTS_LAYER} layer detected but no 3D grid data')
+        else: 
+            multiplane = False 
+            usr_layer_grid =  self.viewer.layers[USR_GRID_LAYER]
+
         # User grid pattern
-        usr_layer_grid = self.viewer.layers[USR_GRID_LAYER]
         usr_dots = usr_layer_grid.data
-
-        # UNWARPING
-        unwarped, status = unwarp(usr_dots, standard_grid, grid_image_original)
-
-        # Start margin ...
         margin = self.start_margin
 
 
-        if status == True:
-            while status: 
-                print(f'margin now at {margin:.4f}')
-                margin-=0.005
-                grid_dots_ = generate_perfect_grid(data = grid_image_original,
-                                                   rows = self.no_rows,
-                                                   cols = self.no_cols,
-                                                   start_margin = margin,
-                                                )
-                unwarped, status = unwarp(usr_dots, grid_dots_, grid_image_original)
-        else:
-            while not status: 
-                print(f'margin now at {margin:.4f}')
-                margin+=0.005
-                grid_dots_ = generate_perfect_grid(data = grid_image_original,
-                                                rows = self.no_rows,
-                                                cols = self.no_cols,
-                                                start_margin = margin,
-                                                )
-                unwarped, status = unwarp(usr_dots, grid_dots_, grid_image_original)
+        # UNWARPING
+        if not multiplane: 
+            
+            unwarped, status = unwarp(usr_dots, standard_grid, grid_image_original)
+            # Start optimization
+            unwarped, margin = get_optimal_unwarp(status,
+                                                  margin,
+                                                  usr_dots,
+                                                  grid_image_original,
+                                                  self.no_rows,
+                                                  self.no_cols,
+                                                 )
+
+        else: 
+            # Need to jump through some hoops to reformat the data in original 2D representation ... 
+            usr_dots_reshaped = np.reshape(usr_dots,(-1,num_planes,3))
+            usr_dots_reshaped = np.moveaxis(usr_dots_reshaped, 0, -1)
+
+            # Do this twice - once just to get optimal margins across the whole stack
+            # then to actually collect the output at optimal margin
+            margins = []
+            for plane in progress(np.arange(num_planes), desc='Optimizing margins'):
+                usr_dots = usr_dots_reshaped[plane, 1:].T # LOVELY! 
+                unwarped, status = unwarp(usr_dots, standard_grid, grid_image_original[plane,:,:])
+                # Start optimization
+                unwarped, margin_ = get_optimal_unwarp(status,
+                                                       margin,
+                                                       usr_dots,
+                                                       grid_image_original[plane,:,:],
+                                                       self.no_rows,
+                                                       self.no_cols,
+                                                    )
+                margins.append(margin_)
+
+            print(f'These margins have been found across planes:\n{margins}')
+            # We are only interested in the largest margin, since this determines 
+            # the slice on which the largest amount of information would have been lost 
+            best_margin = np.max(margins)
+            print(f'Selected margin: {best_margin}')
+
+            # ... now do it for real and collect the output
+            all_unwarped = []
+            for plane in progress(np.arange(num_planes), desc='Collecting output'):
+                standard_grid = generate_perfect_grid(data = grid_image_original[plane,:,:],
+                                                      rows = self.no_rows,
+                                                      cols = self.no_cols,
+                                                      start_margin = best_margin,
+                                                     )
+                unwarped, status = unwarp(usr_dots, standard_grid, grid_image_original[plane,:,:])
+                all_unwarped.append(unwarped)
+            unwarped = np.stack(all_unwarped)
 
         # Lastly, add the unwarped grid image to the viewer
         self.viewer.add_image(data=unwarped, rgb=False, name=UNWARPED_LAYER)

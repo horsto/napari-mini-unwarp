@@ -11,6 +11,12 @@ from tifffile import imread
 import scanreader
 from scanreader.exceptions import ScanImageVersionError
 
+
+
+# Some naming ... 
+GRID_IMAGE_LAYER = 'Grid image(s)'
+
+
 def napari_get_reader(path):
     """
     Decide which file type / reader function you are dealing with. 
@@ -120,6 +126,8 @@ def tif_reader(path):
             if scan.num_scanning_depths > 1: 
                 raise NotImplementedError(f'>1 imaging plane detected in {tif_file.as_posix()}')
 
+
+
             z_height = scan.scanning_depths_relative[0]
             print(f'{tif_file.name:<30} ScanImage .tif with {scan.num_frames} frames, zoom {scan.zoom}, depth {z_height}')
             tif_dict[z_height] = tif_file.as_posix()
@@ -154,7 +162,8 @@ def tif_reader(path):
         data = np.stack(stacked_avg)
             
         # Make sure the scale is [1,1,1], otherwise everything goes haywire ...
-        add_kwargs = {'rgb': False, 'name' : 'Grid image(s)', 'metadata': sorted_zpos, 'scale': [1, 1, 1]}
+        metadata = {**sorted_zpos, **{'zoom': str(np.float(np.unique(zooms))), 'z_height' : 'read from file'}}
+        add_kwargs = {'rgb': False, 'name' : GRID_IMAGE_LAYER, 'metadata': metadata, 'scale': [1, 1, 1]}
         layer_type = "image"  # optional, default is "image"
         
         # Before returning, also save the file as dictionary to disk 
@@ -176,6 +185,12 @@ def tif_reader(path):
 
         try: 
             scan = scanreader.read_scan(tif_file.as_posix())
+            z_height = scan.scanning_depths_relative[0]
+            zoom = scan.zoom
+            metadata = {
+                'z_height' : str(z_height),
+                'zoom'     : str(zoom),
+            }
             if scan.shape[-1] > 1:
                 print(f'Timeseries assumed')
                 average_proj = np.mean(scan, axis=-1).squeeze()
@@ -185,6 +200,7 @@ def tif_reader(path):
                 data = np.array(scan).squeeze()
 
         except ScanImageVersionError:
+            metadata = {}
             data = imread(tif_file.as_posix())
             if len(data.shape) == 3:
                 assert data.shape[1] == data.shape[2], f'Image data shape not supported ({data.shape})'
@@ -192,7 +208,7 @@ def tif_reader(path):
 
         assert len(data.shape) == 2, 'Data has more than 2 dimensions'
 
-        add_kwargs = {'rgb': False, 'name' : 'Grid image(s)', 'metadata': {}}
+        add_kwargs = {'rgb': False, 'name' : GRID_IMAGE_LAYER, 'metadata': metadata}
         layer_type = "image"  # optional, default is "image"
         
         return [(data, add_kwargs, layer_type)]

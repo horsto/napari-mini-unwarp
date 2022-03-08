@@ -63,14 +63,16 @@ def propagate_cross_corr(grid_image,
                          grid_points_current, 
                          plane_idx_current, 
                          b_box_halfwidth,
-                         upsample_factor = 250):
+                         upsample_factor = 250
+                         ):
 
     '''
     Helper function for propagating a single layer of user defined points 
     throughout a stack (all grid pictures across all planes). 
     This is achieved by calculating a local cross correlation of 
     size (b_box_halfwidth * 2)**2) around each user chosen point across 
-    adjacent planes, and collecting the extracted offset.  
+    adjacent planes, and collecting the extracted offset
+
     
     Parameters
     ----------
@@ -175,7 +177,11 @@ def propagate_cross_corr(grid_image,
     return sorted_point_dict
 
 
-def unwarp(usr_dots, grid_dots, grid_image_original):
+def unwarp(usr_dots, 
+           grid_dots, 
+           grid_image_original
+           ):
+
     unwarped = warp_images(
                 from_points   = usr_dots,
                 to_points     = grid_dots,
@@ -191,4 +197,54 @@ def unwarp(usr_dots, grid_dots, grid_image_original):
     row2 = (unwarped[:,-1] == 0).all()
 
     status = col1 == col2 == row1 == row2 == True
+    # So IF status == True, this means that none of the borders is touched
     return unwarped, status
+
+
+def get_optimal_unwarp(status,
+                       margin,
+                       usr_dots,
+                       grid_image_original,
+                       no_rows,
+                       no_cols,
+                       ):
+
+    '''
+    For the case that the unwarped image is touching the border of the image,
+    it cannot be guaranteed that information is getting lost during (after) unwarping.
+
+    The reverse is also bad: If the image is NOT touching any border, that means that 
+    the warping artifically shrank the unwarped result compared to the original image 
+    dimensions, which we want to prevent. 
+
+    Therefore, systematically vary the spacing of the grid of (perfect) dots 
+    (determined by initial margin to border), and run unwarping until no more touching
+    of the border is detected
+
+    "status" is output of unwarp() above and determines the initial condition:
+    status == False: touching
+    status == True:  not touching
+    
+    '''
+    if status == True:
+        while status: 
+            print(f'Margin now at {margin:.4f}')
+            margin-=0.005
+            grid_dots_ = generate_perfect_grid(data = grid_image_original,
+                                               rows = no_rows,
+                                               cols = no_cols,
+                                               start_margin = margin,
+                                              )
+            unwarped, status = unwarp(usr_dots, grid_dots_, grid_image_original)
+    else:
+        while not status: 
+            print(f'Margin now at {margin:.4f}')
+            margin+=0.005
+            grid_dots_ = generate_perfect_grid(data = grid_image_original,
+                                               rows = no_rows,
+                                               cols = no_cols,
+                                               start_margin = margin,
+                                               )
+            unwarped, status = unwarp(usr_dots, grid_dots_, grid_image_original)
+
+    return unwarped, margin
