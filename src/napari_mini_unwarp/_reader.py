@@ -153,7 +153,8 @@ def tif_reader(path):
 
         data = np.stack(stacked_avg)
             
-        add_kwargs = {'rgb': False, 'name' : 'Grid image(s)', 'metadata': sorted_zpos, 'scale': [10, 1, 1]}
+        # Make sure the scale is [1,1,1], otherwise everything goes haywire ...
+        add_kwargs = {'rgb': False, 'name' : 'Grid image(s)', 'metadata': sorted_zpos, 'scale': [1, 1, 1]}
         layer_type = "image"  # optional, default is "image"
         
         # Before returning, also save the file as dictionary to disk 

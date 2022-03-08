@@ -3,7 +3,7 @@
 
 
 """
-
+import numpy as np 
 from qtpy.QtWidgets import (QWidget, 
                             QHBoxLayout, 
                             QPushButton, 
@@ -17,8 +17,7 @@ from qtpy.QtWidgets import (QWidget,
 import qtpy.QtCore as qtcore 
 from qtpy.QtGui import QIntValidator, QDoubleValidator
 
-from ._helpers import generate_perfect_grid, unwarp
-
+from ._helpers import generate_perfect_grid, unwarp, get_median_spacing, propagate_cross_corr
 
 
 GRID_IMAGE_LAYER = 'Grid image(s)'
@@ -513,14 +512,50 @@ class MiniUnwarpWidget(QWidget):
 
 
 
-        current_plane = self.viewer.dims.current_step[0]
-        
+        plane_idx_current   = self.viewer.dims.current_step[0]
+        print(f'Current plane: {plane_idx_current}')
+        #grid_image_current  = grid_image[plane_idx_current, :, :]
+        grid_points_current = self.viewer.layers['Grid'].data
+        num_planes = grid_image.shape[0]
+                
+        med_dist = get_median_spacing(grid_points_current)
+        b_box_halfwidth = int(med_dist/4)
+
+        sorted_point_dict = propagate_cross_corr(grid_image,
+                                                 grid_points_current, 
+                                                 plane_idx_current, 
+                                                 b_box_halfwidth,
+                                                )
 
 
+        # To add these points to the viewer we have to jump through some hoops ... 
+        corr_points = np.stack(list(sorted_point_dict.values()))       
+        for no, pt in enumerate(np.moveaxis(corr_points,0,-1)):
+            # Looping over (individual points, 2, number of planes)
+            # Create new point 
+            new_pt = np.vstack((np.arange(num_planes), pt))
+            new_pt = np.moveaxis(new_pt, -1, 0)
+            if no == 0:
+                all_points = new_pt
+            else:
+                all_points = np.vstack((all_points, new_pt))
 
 
-        
+        # Add all points across all planes to viewer
+        self.viewer.add_points(name='Corrected points',
+                               data=all_points,
+                               edge_width=.7, 
+                               edge_color='#000000',  
+                               face_color = 'cornflowerblue',
+                               opacity = .6,    
+                               size=grid_image.shape[-1]/50, # Adapt size of symbol to current data size
+                               blending='translucent',
+                               out_of_slice_display=False,
+                               )
+
+
         return
+
 
 
     def _unwarp(self):
