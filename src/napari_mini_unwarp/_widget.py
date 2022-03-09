@@ -513,9 +513,6 @@ class MiniUnwarpWidget(QWidget):
         For data spanning multiple layers, 
         take the currently activated layer and try to propagate points 
         in z (across planes)
-
-
-        
         
         '''
 
@@ -541,7 +538,6 @@ class MiniUnwarpWidget(QWidget):
                     print('Skipping')
                     return 
 
-
         plane_idx_current   = self.viewer.dims.current_step[0]
         print(f'Current plane: {plane_idx_current}')
         grid_points_current = self.viewer.layers['Grid'].data
@@ -554,7 +550,7 @@ class MiniUnwarpWidget(QWidget):
                                                  grid_points_current, 
                                                  plane_idx_current, 
                                                  b_box_halfwidth,
-                                                )
+                                                 )
 
 
         # To add these points to the viewer we have to jump through some hoops ... 
@@ -573,10 +569,10 @@ class MiniUnwarpWidget(QWidget):
         # Add all points across all planes to viewer
         self.viewer.add_points(name=CORRECTED_POINTS_LAYER,
                                data=all_points,
-                               edge_width=.7, 
-                               edge_color='#000000',  
+                               edge_width=.7,
+                               edge_color='#000000',
                                face_color = 'cornflowerblue',
-                               opacity = .6,    
+                               opacity = .6,
                                size=grid_image.shape[-1]/50, # Adapt size of symbol to current data size
                                blending='translucent',
                                out_of_slice_display=False,
@@ -652,6 +648,12 @@ class MiniUnwarpWidget(QWidget):
                                                   self.no_rows,
                                                   self.no_cols,
                                                  )
+            standard_grid = generate_perfect_grid(data = grid_image_original[plane,:,:],
+                                                  rows = self.no_rows,
+                                                  cols = self.no_cols,
+                                                  start_margin = margin,
+                                                )
+
 
         else: 
             # Need to jump through some hoops to reformat the data in original 2D representation ... 
@@ -660,10 +662,17 @@ class MiniUnwarpWidget(QWidget):
 
             # Do this twice - once just to get optimal margins across the whole stack
             # then to actually collect the output at optimal margin
-            margins = []
+            print('Optimizing margins ...')
             for plane in progress(np.arange(num_planes), desc='Optimizing margins'):
                 usr_dots = usr_dots_reshaped[plane, 1:].T # LOVELY! 
+                
+                standard_grid = generate_perfect_grid(data = grid_image_original[plane,:,:],
+                                                      rows = self.no_rows,
+                                                      cols = self.no_cols,
+                                                      start_margin = margin,
+                                                      )
                 unwarped, status = unwarp(usr_dots, standard_grid, grid_image_original[plane,:,:])
+
                 # Start optimization
                 unwarped, margin_ = get_optimal_unwarp(status,
                                                        margin,
@@ -672,21 +681,22 @@ class MiniUnwarpWidget(QWidget):
                                                        self.no_rows,
                                                        self.no_cols,
                                                     )
-                margins.append(margin_)
+                if margin_ > margin: 
+                    # We are only intereseted in those unwarping results 
+                    # that overshoot the boundaries (loose information over borders):
+                    # Those are the ones that determine the upper bound, i.e. only the max counts here
+                    margin = margin_
 
-            print(f'These margins have been found across planes:\n{margins}')
-            # We are only interested in the largest margin, since this determines 
-            # the slice on which the largest amount of information would have been lost 
-            best_margin = np.max(margins)
-            print(f'Selected margin: {best_margin}')
+            print(f'Selected margin: {margin}')
 
             # ... now do it for real and collect the output
+            print('Unwarping all planes ...')
             all_unwarped = []
             for plane in progress(np.arange(num_planes), desc='Collecting output'):
                 standard_grid = generate_perfect_grid(data = grid_image_original[plane,:,:],
                                                       rows = self.no_rows,
                                                       cols = self.no_cols,
-                                                      start_margin = best_margin,
+                                                      start_margin = margin,
                                                      )
                 unwarped, status = unwarp(usr_dots, standard_grid, grid_image_original[plane,:,:])
                 all_unwarped.append(unwarped)
@@ -694,6 +704,30 @@ class MiniUnwarpWidget(QWidget):
 
         # Lastly, add the unwarped grid image to the viewer
         self.viewer.add_image(data=unwarped, rgb=False, name=UNWARPED_LAYER)
+
+
+
+
+
+        # Replace the standard grid with the optimized one 
+        # this is the case for both the single as well as the multi plane case, so 
+        # do it now, at the end
+
+        self.viewer.layers.pop(STANDARD_GRID_LAYER)
+        self.viewer.add_points(data=standard_grid,
+                               name=STANDARD_GRID_LAYER,
+                               edge_width=1, 
+                               edge_color='#000000',  
+                               face_color = 'white',
+                               opacity = .8,    
+                               size=grid_image_original.shape[-1]/50, # Adapt size of symbol to current data size
+                               blending='translucent',
+                               out_of_slice_display=False,
+                              )
+        self.viewer.layers[STANDARD_GRID_LAYER].visible = False
+
+
+
 
         self.state_export_btn = True
         self.export_button.setEnabled(self.state_export_btn)
@@ -705,4 +739,38 @@ class MiniUnwarpWidget(QWidget):
         Export the unwarping results to disk.
         
         '''
-        print('EXPORT')
+        #Collect output 
+        for l in [GRID_IMAGE_LAYER, UNWARPED_LAYER, STANDARD_GRID_LAYER]:
+            if l not in self.viewer.layers:
+                print(f'{l} layer is missing')
+                self.state_export_btn = False
+                self.export_button.setEnabled(self.state_export_btn)
+                return
+
+        # Original grid image 
+        grid_image = self.viewer.layers[GRID_IMAGE_LAYER].data
+        # Unwarped grid image
+        grid_image_unwarped = self.viewer.layers[UNWARPED_LAYER].data
+
+        # Standard grid 
+        standard_grid_points = self.viewer.layers[STANDARD_GRID_LAYER].data 
+        # Corrected grid
+        if CORRECTED_POINTS_LAYER in self.viewer.layers: 
+            # This is only the case for multi plane data (and then the right one to export)
+            corrected_grid_points = self.viewer.layers[CORRECTED_POINTS_LAYER].data
+        elif USR_GRID_LAYER in self.viewer.layers:
+            # ... if only a single layer is available
+            corrected_grid_points = self.viewer.layers[USR_GRID_LAYER].data
+        else:
+            print('No user corrected grid layer was found.')
+            self.state_export_btn = False
+            self.export_button.setEnabled(self.state_export_btn)
+            return
+        
+        # path = 
+        print('EXPORTING')
+
+        # with open(path/'export_timestamp_something.pkl', "wb") as export_file:
+        #     print('Saving all results into ')
+        #     pickle.dump(save_dict, export_file)
+

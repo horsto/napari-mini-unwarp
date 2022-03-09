@@ -172,7 +172,8 @@ def propagate_cross_corr(grid_image,
             corr_points = np.stack(corr_points)
             dict_points[idx] = corr_points
             last_points = corr_points
-            
+    
+    # Sort dictionary by plane index
     sorted_point_dict = OrderedDict(sorted(dict_points.items()))
     return sorted_point_dict
 
